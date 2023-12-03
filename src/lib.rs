@@ -5,15 +5,22 @@ use bevy::{
     ecs::{
         entity::Entity,
         system::{Commands, Query, ResMut, Resource},
+        world::EntityWorldMut,
     },
+    render::color::Color,
+    ui::FlexDirection,
     DefaultPlugins,
 };
 use bevy_mod_picking::{
     backends::bevy_ui::BevyUiBackend,
+    events::{Click, Pointer},
     input::InputPlugin,
     picking_core::{CorePlugin, InteractionPlugin},
+    prelude::On,
 };
-use bevy_quill::{Cx, Element, For, If, QuillPlugin, View, ViewHandle};
+use bevy_quill::{
+    Cx, Element, For, If, LocalData, PresenterFn, QuillPlugin, StyleHandle, View, ViewHandle,
+};
 
 pub struct EditorPlugin {}
 
@@ -33,21 +40,70 @@ pub fn setup_editor(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
-fn editor_root(_: Cx) -> impl View {
-    scene_panel
+// ----------------------------------------------------------------------------
+
+fn editor_root(mut cx: Cx) -> impl View {
+    let selected_entity = cx.use_local(|| Option::<Entity>::None);
+
+    Element::new()
+        .children((
+            scene_tree_panel.bind(selected_entity.clone()),
+            entity_inspector_panel.bind(selected_entity.get()),
+        ))
+        .styled(StyleHandle::build(|s| s.flex_direction(FlexDirection::Row)))
 }
 
-fn scene_panel(mut cx: Cx) -> impl View {
-    let scene_entities = &cx.use_resource::<SceneEntities>().0;
+fn scene_tree_panel(mut cx: Cx<LocalData<Option<Entity>>>) -> impl View {
+    let on_click_set_selected_entity = {
+        let selected_entity = cx.props.clone();
+        move |v: Option<Entity>| {
+            let selected_entity = selected_entity.clone();
+            move |mut e: EntityWorldMut| {
+                let mut selected_entity = selected_entity.clone();
+                e.insert(On::<Pointer<Click>>::run(move || selected_entity.set(v)));
+            }
+        }
+    };
 
+    let entity_widget = {
+        let selected_entity = cx.props.clone();
+        let on_click_set_selected_entity = on_click_set_selected_entity.clone();
+
+        move |(entity, name): &(Entity, String)| {
+            name.clone()
+                .styled(StyleHandle::build(|s| {
+                    if Some(*entity) == selected_entity.get() {
+                        s.background_color(Color::PURPLE)
+                    } else {
+                        s
+                    }
+                }))
+                .once(on_click_set_selected_entity(Some(*entity)))
+        }
+    };
+
+    let scene_entities = &cx.use_resource::<SceneEntities>().0;
     If::new(
         scene_entities.is_empty(),
-        "<No entities exist>",
-        Element::new().children(For::keyed(
-            scene_entities,
-            |(entity, _)| *entity,
-            |(_, name)| name.clone(),
-        )),
+        "No entities exist",
+        Element::new()
+            .children(For::keyed(
+                scene_entities,
+                |(entity, _)| *entity,
+                entity_widget,
+            ))
+            .styled(StyleHandle::build(|s| {
+                s.flex_direction(FlexDirection::Column)
+            })),
+    )
+    .once(on_click_set_selected_entity(None))
+}
+
+fn entity_inspector_panel(cx: Cx<Option<Entity>>) -> impl View {
+    If::new(
+        cx.props.is_some(),
+        "TODO: Component widgets",
+        "Select an entity to view its components",
     )
 }
 
