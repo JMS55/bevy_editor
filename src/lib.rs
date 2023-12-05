@@ -75,8 +75,9 @@ fn scene_tree_panel(mut cx: Cx<LocalData<Option<Entity>>>) -> impl View {
                     if Some(*entity) == selected_entity.get() {
                         s.background_color(Color::PURPLE)
                     } else {
-                        s
+                        s.background_color(Color::MIDNIGHT_BLUE)
                     }
+                    .padding(12.0)
                 }))
                 .once(on_click_set_selected_entity(Some(*entity)))
         }
