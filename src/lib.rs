@@ -18,8 +18,9 @@ use bevy_mod_picking::{
     picking_core::{CorePlugin, InteractionPlugin},
     prelude::On,
 };
-use bevy_quill::{
-    Cx, Element, For, If, LocalData, PresenterFn, QuillPlugin, StyleHandle, View, ViewHandle,
+use bevy_quill::prelude::{
+    AtomHandle, AtomStore, Cx, Element, For, If, PresenterFn, QuillPlugin, StyleHandle, View,
+    ViewHandle,
 };
 
 pub struct EditorPlugin {}
@@ -43,44 +44,39 @@ pub fn setup_editor(mut commands: Commands) {
 // ----------------------------------------------------------------------------
 
 fn editor_root(mut cx: Cx) -> impl View {
-    let selected_entity = cx.use_local(|| Option::<Entity>::None);
+    let selected_entity = cx.create_atom_init(|| Option::<Entity>::None);
 
     Element::new()
         .children((
-            scene_tree_panel.bind(selected_entity.clone()),
-            entity_inspector_panel.bind(selected_entity.get()),
+            scene_tree_panel.bind(selected_entity),
+            entity_inspector_panel.bind(selected_entity),
         ))
         .styled(StyleHandle::build(|s| s.flex_direction(FlexDirection::Row)))
 }
 
-fn scene_tree_panel(mut cx: Cx<LocalData<Option<Entity>>>) -> impl View {
-    let on_click_set_selected_entity = {
-        let selected_entity = cx.props.clone();
-        move |v: Option<Entity>| {
-            let selected_entity = selected_entity.clone();
-            move |mut e: EntityWorldMut| {
-                let mut selected_entity = selected_entity.clone();
-                e.insert(On::<Pointer<Click>>::run(move || selected_entity.set(v)));
-            }
+fn scene_tree_panel(cx: Cx<AtomHandle<Option<Entity>>>) -> impl View {
+    let selected_entity = *cx.props;
+
+    let on_click_set_selected_entity = move |v: Option<Entity>| {
+        move |mut e: EntityWorldMut| {
+            e.insert(On::<Pointer<Click>>::run(move |mut atoms: AtomStore| {
+                atoms.set(selected_entity, v);
+            }));
         }
     };
 
-    let entity_widget = {
-        let selected_entity = cx.props.clone();
-        let on_click_set_selected_entity = on_click_set_selected_entity.clone();
-
-        move |(entity, name): &(Entity, String)| {
-            name.clone()
-                .styled(StyleHandle::build(|s| {
-                    if Some(*entity) == selected_entity.get() {
-                        s.background_color(Color::PURPLE)
-                    } else {
-                        s.background_color(Color::MIDNIGHT_BLUE)
-                    }
-                    .padding(12.0)
-                }))
-                .once(on_click_set_selected_entity(Some(*entity)))
-        }
+    let selected_entity = cx.read_atom(selected_entity);
+    let entity_widget = move |(entity, name): &(Entity, String)| {
+        name.clone()
+            .styled(StyleHandle::build(|s| {
+                if Some(*entity) == selected_entity {
+                    s.background_color(Color::PURPLE)
+                } else {
+                    s.background_color(Color::MIDNIGHT_BLUE)
+                }
+                .padding(12.0)
+            }))
+            .once(on_click_set_selected_entity(Some(*entity)))
     };
 
     let scene_entities = &cx.use_resource::<SceneEntities>().0;
@@ -100,9 +96,10 @@ fn scene_tree_panel(mut cx: Cx<LocalData<Option<Entity>>>) -> impl View {
     .once(on_click_set_selected_entity(None))
 }
 
-fn entity_inspector_panel(cx: Cx<Option<Entity>>) -> impl View {
+fn entity_inspector_panel(cx: Cx<AtomHandle<Option<Entity>>>) -> impl View {
+    let selected_entity = cx.read_atom(*cx.props);
     If::new(
-        cx.props.is_some(),
+        selected_entity.is_some(),
         "TODO: Component widgets",
         "Select an entity to view its components",
     )

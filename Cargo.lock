@@ -977,7 +977,7 @@ checksum = "c77ec20c8fafcdc196508ef5ccb4f0400a8d193cb61f7b14a36ed9a25ad423cf"
 [[package]]
 name = "bevy_quill"
 version = "0.1.1"
-source = "git+https://github.com/viridia/quill?rev=a12ce1e86d03f0c10a7c5e95d65cdde8fc335b1d#a12ce1e86d03f0c10a7c5e95d65cdde8fc335b1d"
+source = "git+https://github.com/viridia/quill?rev=813f32e6e545331cfd40b3fc82f68e05bcb53cda#813f32e6e545331cfd40b3fc82f68e05bcb53cda"
 dependencies = [
  "bevy",
  "bevy_mod_picking",
