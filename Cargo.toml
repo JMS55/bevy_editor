@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.12"
-bevy_quill = { git = "https://github.com/viridia/quill", rev = "813f32e6e545331cfd40b3fc82f68e05bcb53cda" }
+bevy_quill = { git = "https://github.com/viridia/quill" }
 bevy_mod_picking = "0.17"
 
 [[example]]
